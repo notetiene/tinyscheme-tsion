@@ -1,0 +1,71 @@
+# $Id$
+#
+
+LIBRARY = libtinyscheme
+
+PROGRAM = tinyscheme
+
+SRCS = scheme.c
+OBJS = $(SRCS:.c=.o)
+
+#*******************************************************************************
+#    Define the ARM-specific compilation tools to be used.  (Most NDS
+#    developers include devkitPro's "base_rules" and "ds_rules" for these
+#    definitions and for the suffix rules, but these files were written
+#    without following the conventions used in Make's implicit rules.
+#    The implicit rules work just fine for C and C++ files.)
+PREFIX	=	arm-eabi-
+CC	=	$(PREFIX)gcc
+LD	=	$(PREFIX)gcc
+OBJCOPY	=	$(PREFIX)objcopy
+#*******************************************************************************
+
+LIBS = \
+	-L$(DEVKITPRO)/libnds/lib -lfat -lnds9 \
+	-L$(DEVKITARM)/arm-eabi/lib -lm
+
+CPPFLAGS := \
+	-DUSE_DL=0 -DUSE_STRCASECMP=0 -DUSE_STRLWR=0 \
+	-DUSE_CHAR_CLASSIFIERS=1 -DUSE_MATH=1 \
+	-UUSE_SCHEME_STACK -DUSE_STRING_PORTS=1 \
+	-DNDS \
+	-DARM9 \
+	-I. \
+	-I$(DEVKITPRO)/libnds/include
+
+CFLAGS := \
+	-g -Wall -O2 \
+	-ffast-math -fomit-frame-pointer \
+	-march=armv5te -mtune=arm946e-s \
+	-mthumb -mthumb-interwork
+
+LDFLAGS := \
+	-specs=ds_arm9.specs \
+	-mthumb -mthumb-interwork
+
+ARFLAGS = rv
+RANLIB = ranlib
+
+all::	$(LIBRARY).a $(PROGRAM).nds
+
+$(LIBRARY).a: $(OBJS)
+	$(RM) $@
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(RANLIB) $@
+
+scheme.o: scheme.c
+	$(COMPILE.c) -DSTANDALONE=0 -o $@ $<
+
+$(PROGRAM).nds: $(PROGRAM).o StdIONDS.o
+	$(LD) $(LDFLAGS) -o $(PROGRAM).elf StdIONDS.o $(PROGRAM).o $(LIBS)
+	$(OBJCOPY) -O binary $(PROGRAM).elf $(PROGRAM).arm9
+	ndstool -c $@ -9 $(PROGRAM).arm9
+
+$(PROGRAM).o: scheme.c
+	$(COMPILE.c) -Dmain=$(PROGRAM) -DSTANDALONE=1 -o $@ $<
+
+StdIONDS.o: StdIONDS.c
+	$(COMPILE.c) -DPROGRAM=$(PROGRAM) -DSPROGRAM=\"$(PROGRAM)\" -o $@ $<
+
+clean::
+	-$(RM) *.o $(LIBRARY).a $(PROGRAM).nds $(PROGRAM).arm9 $(PROGRAM).elf

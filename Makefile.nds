@@ -1,0 +1,100 @@
+# $Id: Makefile.nds,v 1.1 2009/08/27 17:33:16 alex Exp alex $
+#
+
+PROGRAMS = tsion tsiond
+
+LIBRARY = libtsion
+
+SRCS =	\
+	funcs_drs.c \
+	funcs_iox.c \
+	funcs_lfn.c \
+	funcs_misc.c \
+	funcs_net.c \
+	funcs_rex.c \
+	funcs_skt.c \
+	funcs_tcp.c \
+	gc_util.c \
+	opaque.c \
+	plist_util.c \
+	scm_util.c
+
+OBJS = $(SRCS:.c=.o)
+
+#*******************************************************************************
+#    Define the ARM-specific compilation tools to be used.  (Most NDS
+#    developers include devkitPro's "base_rules" and "ds_rules" for these
+#    definitions and for the suffix rules, but these files were written
+#    without following the conventions used in Make's implicit rules.
+#    The implicit rules work just fine for C and C++ files.)
+PREFIX	=	arm-eabi-
+AR	=	$(PREFIX)ar
+CC	=	$(PREFIX)gcc
+LD	=	$(PREFIX)gcc
+OBJCOPY	=	$(PREFIX)objcopy
+RANLIB	=	$(PREFIX)ranlib
+#*******************************************************************************
+
+ROOT = ..
+
+CPPFLAGS := \
+	-DUSE_DL=0 -DUSE_STRCASECMP=0 -DUSE_STRLWR=0 \
+	-DUSE_CHAR_CLASSIFIERS=1 -DUSE_MATH=1 \
+	-UUSE_SCHEME_STACK -DUSE_STRING_PORTS=1 \
+	-DNDS \
+	-DARM9 \
+	-I. \
+	-I$(ROOT)/include \
+	-I$(DEVKITPRO)/tinyscheme \
+	-I$(DEVKITPRO)/libnds/include
+
+CFLAGS := \
+	-g -Wall -O2 \
+	-ffast-math -fomit-frame-pointer \
+	-march=armv5te -mtune=arm946e-s \
+	-mthumb -mthumb-interwork
+
+LIBS = \
+	$(ROOT)/libgpl/libgpl.a \
+	$(ROOT)/libxdr/libxdr.a \
+	$(DEVKITPRO)/tinyscheme/libtinyscheme.a \
+	-L$(DEVKITPRO)/libnds/lib -ldswifi9 -lfat -lnds9 \
+	-L$(DEVKITARM)/arm-eabi/lib -lm
+
+LDFLAGS := \
+	-specs=ds_arm9.specs \
+	-mthumb -mthumb-interwork
+
+ARFLAGS = rv
+
+all::	$(LIBRARY).a $(PROGRAMS:=.nds)
+
+$(LIBRARY).a: $(OBJS)
+	$(RM) $@
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(RANLIB) $@
+
+tsion.nds: StdIONDS_tsion.o tsion.o $(OBJS)
+	$(LD) $(LDFLAGS) -o tsion.elf StdIONDS_tsion.o tsion.o $(OBJS) $(LIBS)
+	$(OBJCOPY) -O binary tsion.elf tsion.arm9
+	ndstool -c $@ -9 tsion.arm9
+
+tsion.o: tsion.c
+	$(COMPILE.c) -Dmain=tsion -o $@ $<
+
+StdIONDS_tsion.o: $(ROOT)/libgpl/StdIONDS.c
+	$(COMPILE.c) -DPROGRAM=tsion -DSPROGRAM=\"tsion\" -DDSWIFI -o $@ $<
+
+tsiond.nds: StdIONDS_tsiond.o tsiond.o $(OBJS)
+	$(LD) $(LDFLAGS) -o tsiond.elf StdIONDS_tsiond.o tsiond.o $(OBJS) $(LIBS)
+	$(OBJCOPY) -O binary tsiond.elf tsiond.arm9
+	ndstool -c $@ -9 tsiond.arm9
+
+tsiond.o: tsiond.c
+	$(COMPILE.c) -Dmain=tsiond -o $@ $<
+
+StdIONDS_tsiond.o: $(ROOT)/libgpl/StdIONDS.c
+	$(COMPILE.c) -DPROGRAM=tsiond -DSPROGRAM=\"tsiond\" -DDSWIFI -o $@ $<
+
+clean::
+	-$(RM) *.o $(LIBRARY).a $(PROGRAMS:=.nds) *.arm9 *.elf

@@ -1,0 +1,69 @@
+# $Id: Makefile.linux,v 1.2 2016/03/13 01:30:58 alex Exp alex $
+#
+
+PROGRAMS = tsion tsiond
+
+LIBRARY = libtsion.a
+
+SRCS = \
+	funcs_drs.c \
+	funcs_iox.c \
+	funcs_lfn.c \
+	funcs_misc.c \
+	funcs_net.c \
+	funcs_rex.c \
+	funcs_skt.c \
+	funcs_tcp.c \
+	gc_util.c \
+	opaque.c \
+	plist_util.c \
+	scm_util.c
+
+OBJS = $(SRCS:.c=.o)
+
+# Use /OPT directory instead of /USR/LOCAL ...
+#	TINYSCHEME_INC = /usr/local/include/tinyscheme
+#	TINYSCHEME_LIB = -L/usr/local/lib/tinyscheme -ltinyscheme
+PLATFORM := $(shell uname -m)$(shell uname -s)
+TINYSCHEME_INC = /opt/tinyscheme
+TINYSCHEME_LIB = /opt/obj/$(PLATFORM)/tinyscheme/libtinyscheme.a
+
+ROOT = ..
+LIBS = \
+	$(LIBRARY) \
+	$(ROOT)/libgpl/libgpl.a \
+	$(TINYSCHEME_LIB) \
+        -ldl -lm
+INSTALL_DIR = $(HOME)/local/bin/$(arch)
+
+ARFLAGS = rv
+CC = gcc
+CFLAGS = -O -g -Wall -pedantic
+CPPFLAGS = \
+	-DSTANDALONE=0 \
+	-I. \
+	-I$(ROOT)/include \
+	-I$(TINYSCHEME_INC)
+LINK.c = $(CC)
+LDFLAGS = -g
+RANLIB = ranlib
+RM = rm -f
+
+all::	$(LIBRARY) $(PROGRAMS)
+
+tsion: tsion.o $(LIBRARY)
+	$(LINK.c) $(LDFLAGS) -o $@ tsion.o $(LIBS)
+
+tsiond: tsiond.o $(LIBRARY)
+	$(LINK.c) $(LDFLAGS) -o $@ tsiond.o $(LIBS)
+
+$(LIBRARY): $(OBJS)
+	$(RM) $@
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(RANLIB) $@
+
+clean::
+	-$(RM) *.o $(LIBRARY) $(PROGRAMS)
+
+install:
+	cp $(PROGRAMS) $(INSTALL_DIR)

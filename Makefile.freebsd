@@ -1,0 +1,66 @@
+# $Id: Makefile.freebsd,v 1.1 2009/09/10 14:17:46 alex Exp alex $
+#
+
+PROGRAMS = tsion tsiond
+
+LIBRARY = libtsion.a
+
+SRCS = \
+	funcs_drs.c \
+	funcs_iox.c \
+	funcs_lfn.c \
+	funcs_misc.c \
+	funcs_net.c \
+	funcs_rex.c \
+	funcs_skt.c \
+	funcs_tcp.c \
+	gc_util.c \
+	opaque.c \
+	plist_util.c \
+	scm_util.c
+
+OBJS = $(SRCS:.c=.o)
+
+TINYSCHEME_INC = /usr/local/include/tinyscheme
+TINYSCHEME_LIB = /usr/local/lib
+
+ROOT = ..
+LIBS = \
+	$(LIBRARY) \
+	$(ROOT)/libgpl/libgpl.a \
+	-L$(TINYSCHEME_LIB) -ltinyscheme \
+        -lm
+INSTALL_DIR = $(HOME)/local/bin/$(arch)
+
+ARFLAGS = rv
+CC = gcc
+CFLAGS = -O -g -Wall -pedantic
+CPPFLAGS = \
+	-DSTANDALONE=0 \
+	-I. \
+	-I$(ROOT)/include \
+	-I$(TINYSCHEME_INC)
+CFLAGS += $(CPPFLAGS)
+LINK.c = $(CC)
+LDFLAGS = -g
+RANLIB = ranlib
+RM = rm -f
+
+all::	$(LIBRARY) $(PROGRAMS)
+
+tsion: tsion.o $(LIBRARY)
+	$(LINK.c) $(LDFLAGS) -o $@ tsion.o $(LIBS)
+
+tsiond: tsiond.o $(LIBRARY)
+	$(LINK.c) $(LDFLAGS) -o $@ tsiond.o $(LIBS)
+
+$(LIBRARY): $(OBJS)
+	$(RM) $@
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(RANLIB) $@
+
+clean::
+	-$(RM) *.o $(LIBRARY) $(PROGRAMS)
+
+install:
+	cp $(PROGRAMS) $(INSTALL_DIR)
